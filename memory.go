@@ -138,3 +138,26 @@ func CarveOutPE(hProc windows.Handle, peb windows.PEB, peSize uint64) (pe.File, 
 
 	return *peFile, err
 }
+
+func JuggleWrite(hProcess windows.Handle, baseAddr uintptr, data []byte) error {
+
+	var (
+		oldProtect uint32
+		old        uint32
+		written    uintptr
+	)
+
+	err := windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, windows.PAGE_READWRITE, &oldProtect)
+	if err != nil {
+		return fmt.Errorf("virtualprotect error: %w", err)
+	}
+	err = windows.WriteProcessMemory(windows.Handle(hProcess), baseAddr, &data[0], uintptr(len(data)), &written)
+	if err != nil {
+		return fmt.Errorf("virtualprotect error: %w", err)
+	}
+	err = windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, oldProtect, &old)
+	if err != nil {
+		return fmt.Errorf("virtualprotect error: %w", err)
+	}
+	return err
+}
