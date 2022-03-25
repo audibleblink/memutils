@@ -1,10 +1,11 @@
 package memutils
 
 import (
-	"fmt"
+	"errors"
 	"syscall"
 	"unsafe"
 
+	"github.com/audibleblink/logerr"
 	"golang.org/x/sys/windows"
 )
 
@@ -17,9 +18,10 @@ type WindowsProcess struct {
 }
 
 func Processes() ([]WindowsProcess, error) {
+	log := logerr.Add("Processes")
 	handle, err := windows.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
 	if err != nil {
-		return nil, fmt.Errorf("processes | create_snapshot | %s", err)
+		return nil, log.Add("CreateToolhelp32Snapshot").Wrap(err)
 	}
 	defer windows.CloseHandle(handle)
 
@@ -28,7 +30,7 @@ func Processes() ([]WindowsProcess, error) {
 	// get the first process
 	err = windows.Process32First(handle, &entry)
 	if err != nil {
-		return nil, fmt.Errorf("processes | process_first | %s", err)
+		return nil, log.Add("Process32First").Wrap(err)
 	}
 
 	results := make([]WindowsProcess, 0, 50)
@@ -38,11 +40,11 @@ func Processes() ([]WindowsProcess, error) {
 		err = windows.Process32Next(handle, &entry)
 		if err != nil {
 			// windows sends ERROR_NO_MORE_FILES on last process
-			if err == syscall.ERROR_NO_MORE_FILES {
+			if errors.Is(err, syscall.ERROR_NO_MORE_FILES) {
 				return results, nil
 			}
-			err = fmt.Errorf("processes | %s", err)
-			return results, fmt.Errorf("processes | process_next | %s", err)
+
+			return results, log.Add("Process32Next").Wrap(err)
 		}
 	}
 }

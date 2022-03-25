@@ -6,18 +6,22 @@ import (
 	"unsafe"
 
 	"github.com/Binject/debug/pe"
+	"github.com/audibleblink/logerr"
 	"golang.org/x/sys/windows"
 )
 
 func HandleForPid(pid int, privs int) (handle windows.Handle, err error) {
+	log := logerr.Add("HandleForPid")
 	if pid == 0 {
 		handle = windows.CurrentProcess()
 		return
 	}
+
 	attrs := privs
 	handle, err = windows.OpenProcess(uint32(attrs), true, uint32(pid))
 	if err != nil {
-		err = fmt.Errorf("handleForPid | %d | %s", pid, err)
+		msg := fmt.Sprintf("OpenProcess[%d]", pid)
+		err = log.Add(msg).Wrap(err)
 	}
 	return
 }
@@ -47,7 +51,7 @@ func ProcBasicInfo(handle windows.Handle) (pbi windows.PROCESS_BASIC_INFORMATION
 		uint32(pbiSize),
 		&returnedLen)
 	if err != nil {
-		err = fmt.Errorf("procBasicInfo | %s", err)
+		err = logerr.Add("ProcBasicInfo").Wrap(err)
 		return
 	}
 	return
@@ -66,12 +70,15 @@ func ReadMemory(hProc windows.Handle, start unsafe.Pointer, dest unsafe.Pointer,
 
 	code := (windows.NTStatus)(uint32(ret))
 	if ret != 0 {
-		return fmt.Errorf("readMemory | %s", code.Errno().Error())
+		msg := fmt.Errorf("NtReadVirtualMemory: %s", code.Errno().Error())
+		return logerr.Add("ReadMemory").Wrap(msg)
 	}
 	return nil
 }
 
 func fillPEB(handle windows.Handle, pbi *windows.PROCESS_BASIC_INFORMATION) error {
+	log := logerr.Add("filPEB")
+
 	// read in top level peb
 	base := unsafe.Pointer(pbi.PebBaseAddress)
 	pbi.PebBaseAddress = &windows.PEB{}
@@ -79,7 +86,7 @@ func fillPEB(handle windows.Handle, pbi *windows.PROCESS_BASIC_INFORMATION) erro
 	dest := unsafe.Pointer(pbi.PebBaseAddress)
 	err := ReadMemory(handle, base, dest, size)
 	if err != nil {
-		return fmt.Errorf("fillPEB | process_basic_information | %s", err)
+		return log.Add("PBI").Wrap(err)
 	}
 
 	// with peb.Ldr populated with the remote Ldr pointer, re-read
@@ -89,7 +96,7 @@ func fillPEB(handle windows.Handle, pbi *windows.PROCESS_BASIC_INFORMATION) erro
 	dest = unsafe.Pointer(pbi.PebBaseAddress.Ldr)
 	err = ReadMemory(handle, base, dest, size)
 	if err != nil {
-		return fmt.Errorf("fillPEB | peb.Ldr | %s", err)
+		return log.Add("peb.Ldr").Wrap(err)
 	}
 
 	// also fill peb with process_parameters
@@ -99,7 +106,7 @@ func fillPEB(handle windows.Handle, pbi *windows.PROCESS_BASIC_INFORMATION) erro
 	dest = unsafe.Pointer(pbi.PebBaseAddress.ProcessParameters)
 	err = ReadMemory(handle, base, dest, size)
 	if err != nil {
-		return fmt.Errorf("fillPEB | proc_params | %s", err)
+		return log.Add("proc_params").Wrap(err)
 	}
 	return err
 }
@@ -111,7 +118,7 @@ func PopulateStrings(pidHandle windows.Handle, ntString *windows.NTUnicodeString
 	dest := unsafe.Pointer(&dllNameUTF16[0])
 	err := ReadMemory(pidHandle, base, dest, size)
 	if err != nil {
-		return "", fmt.Errorf("fillPEB | proc_params | %s", err)
+		logerr.Add("PopulateStrings").Wrap(err)
 	}
 	return windows.UTF16ToString(dllNameUTF16), err
 }
@@ -126,20 +133,21 @@ func CarveOutPE(hProc windows.Handle, peb windows.PEB, peSize uint64) (pe.File, 
 		uint32(peSize),
 	)
 	if err != nil {
-		return pe.File{}, fmt.Errorf("can't read pe | %s", err)
+		logerr.Add("CarveOutPE").Wrap(err)
 	}
 
 	// convert the memory bytes into an in-memory, parsed, PE
 	peReader := bytes.NewReader(peData)
 	peFile, err := pe.NewFileFromMemory(peReader)
 	if err != nil {
-		return pe.File{}, fmt.Errorf("can't create pe | %s", err)
+		return pe.File{}, logerr.Add("NewFileFromMemory").Wrap(err)
 	}
 
 	return *peFile, err
 }
 
 func JuggleWrite(hProcess windows.Handle, baseAddr uintptr, data []byte) error {
+	log := logerr.Add("JuggleWrite")
 
 	var (
 		oldProtect uint32
@@ -149,15 +157,15 @@ func JuggleWrite(hProcess windows.Handle, baseAddr uintptr, data []byte) error {
 
 	err := windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, windows.PAGE_READWRITE, &oldProtect)
 	if err != nil {
-		return fmt.Errorf("virtualprotect error: %w", err)
+		return log.Add("VirtualProtectEx[rw]").Wrap(err)
 	}
 	err = windows.WriteProcessMemory(windows.Handle(hProcess), baseAddr, &data[0], uintptr(len(data)), &written)
 	if err != nil {
-		return fmt.Errorf("virtualprotect error: %w", err)
+		return log.Add("WriteProcessMemory").Wrap(err)
 	}
 	err = windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, oldProtect, &old)
 	if err != nil {
-		return fmt.Errorf("virtualprotect error: %w", err)
+		return log.Add("VirtualProtectEx[rx]").Wrap(err)
 	}
 	return err
 }
