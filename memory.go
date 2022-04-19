@@ -58,22 +58,7 @@ func ProcBasicInfo(handle windows.Handle) (pbi windows.PROCESS_BASIC_INFORMATION
 }
 
 func ReadMemory(hProc windows.Handle, start unsafe.Pointer, dest unsafe.Pointer, readLen uint32) error {
-	var bytesRead uint32
-	procNtReadVirtualMemory := windows.NewLazySystemDLL("ntdll.dll").NewProc("NtReadVirtualMemory")
-	ret, _, _ := procNtReadVirtualMemory.Call(
-		uintptr(hProc),                      // hProcess
-		uintptr(start),                      // start address
-		uintptr(dest),                       // destBuffer
-		uintptr(readLen),                    // bytes to read
-		uintptr(unsafe.Pointer(&bytesRead)), // post-read count
-	)
-
-	code := (windows.NTStatus)(uint32(ret))
-	if ret != 0 {
-		msg := fmt.Errorf("NtReadVirtualMemory: %s", code.Errno().Error())
-		return logerr.Add("ReadMemory").Wrap(msg)
-	}
-	return nil
+	return windows.ReadProcessMemory( hProc, uintptr(start), (*byte)(dest), uintptr(readLen), nil, )
 }
 
 func fillPEB(handle windows.Handle, pbi *windows.PROCESS_BASIC_INFORMATION) error {
