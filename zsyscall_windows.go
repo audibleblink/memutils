@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"unsafe"
 
+	"golang.org/x/sys/windows"
+
 	bananaphone "github.com/C-Sto/BananaPhone/pkg/BananaPhone"
 )
 
@@ -15,43 +17,7 @@ var (
 	bpGlobal, bperr = bananaphone.NewBananaPhone(bananaphone.AutoBananaPhoneMode)
 )
 
-func NtOpenProcess(hProcess syscall.Handle, accessMask uint64, pObjectAttrs uintptr, pClientId uintptr) (ntstatus error) {
-	if bpGlobal == nil {
-		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
-		return
-	}
-
-	sysid, e := bpGlobal.GetSysID("NtOpenProcess")
-	if e != nil {
-		err = e
-		return
-	}
-	r0, _ := bananaphone.Syscall(sysid, uintptr(hProcess), uintptr(accessMask), uintptr(pObjectAttrs), uintptr(pClientId))
-	if r0 != 0 {
-		ntstatus = syscall.Errno(r0)
-	}
-	return
-}
-
-func NtQueryInformationProcess(hProcess syscall.Handle, procInfoClass int32, procInfo unsafe.Pointer, procInfoLen uint32, retLen *uint32) (ntstatus error) {
-	if bpGlobal == nil {
-		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
-		return
-	}
-
-	sysid, e := bpGlobal.GetSysID("NtQueryInformationProcess")
-	if e != nil {
-		err = e
-		return
-	}
-	r0, _ := bananaphone.Syscall(sysid, uintptr(hProcess), uintptr(procInfoClass), uintptr(procInfo), uintptr(procInfoLen), uintptr(unsafe.Pointer(retLen)))
-	if r0 != 0 {
-		ntstatus = syscall.Errno(r0)
-	}
-	return
-}
-
-func NtAllocateVirtualMemory(hProcess syscall.Handle, baseAddress *uintptr, zeroBits uintptr, regionSize *uintptr, allocationType uint64, protect uint64) (err error) {
+func NtAllocateVirtualMemory(processHandle windows.Handle, baseAddress *uintptr, zeroBits uintptr, regionSize *uintptr, allocationType uint64, protect uint64) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
 		return
@@ -62,14 +28,92 @@ func NtAllocateVirtualMemory(hProcess syscall.Handle, baseAddress *uintptr, zero
 		err = e
 		return
 	}
-	r1, _ := bananaphone.Syscall(sysid, uintptr(hProcess), uintptr(unsafe.Pointer(baseAddress)), uintptr(zeroBits), uintptr(unsafe.Pointer(regionSize)), uintptr(allocationType), uintptr(protect))
+	r1, _ := bananaphone.Syscall(sysid, uintptr(processHandle), uintptr(unsafe.Pointer(baseAddress)), uintptr(zeroBits), uintptr(unsafe.Pointer(regionSize)), uintptr(allocationType), uintptr(protect))
 	if r1 != 0 {
 		err = fmt.Errorf("error code: %x", r1)
 	}
 	return
 }
 
-func NtReadVirtualMemory(hProcess syscall.Handle, lpBaseAddress uintptr, lpBuffer *byte, nSize uintptr, lpNumberOfBytesWritten *uintptr) (err error) {
+func NtOpenProcess(processHandle *windows.Handle, desiredAccess windows.ACCESS_MASK, objectAttributes *windows.OBJECT_ATTRIBUTES, clientID *ClientID) (err error) {
+	if bpGlobal == nil {
+		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
+		return
+	}
+
+	sysid, e := bpGlobal.GetSysID("NtOpenProcess")
+	if e != nil {
+		err = e
+		return
+	}
+	r1, _ := bananaphone.Syscall(sysid, uintptr(unsafe.Pointer(processHandle)), uintptr(desiredAccess), uintptr(unsafe.Pointer(objectAttributes)), uintptr(unsafe.Pointer(clientID)))
+	if r1 != 0 {
+		err = fmt.Errorf("error code: %x", r1)
+	}
+	return
+}
+
+func NtProtectVirtualMemory(processHandle windows.Handle, baseAddress *uintptr, numberOfBytesToProtect *uintptr, newAccessProtection int64, OldAccessProtection *int64) (err error) {
+	if bpGlobal == nil {
+		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
+		return
+	}
+
+	sysid, e := bpGlobal.GetSysID("NtProtectVirtualMemory")
+	if e != nil {
+		err = e
+		return
+	}
+	r1, _ := bananaphone.Syscall(sysid, uintptr(processHandle), uintptr(unsafe.Pointer(baseAddress)), uintptr(unsafe.Pointer(numberOfBytesToProtect)), uintptr(newAccessProtection), uintptr(unsafe.Pointer(OldAccessProtection)))
+	if r1 != 0 {
+		err = fmt.Errorf("error code: %x", r1)
+	}
+	return
+}
+
+func NtCreateThreadEx(threadHandle *windows.Handle, desiredAccess windows.ACCESS_MASK, objectAttributes *windows.OBJECT_ATTRIBUTES, processHandle windows.Handle, startAddress uintptr, parameter uintptr, createSuspended bool, stackZeroBits uint32, sizeOfStackCommit uint32, sizeOfStackReserve uint32, lpbytesbuffer uint32) (err error) {
+	if bpGlobal == nil {
+		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
+		return
+	}
+
+	sysid, e := bpGlobal.GetSysID("NtCreateThreadEx")
+	if e != nil {
+		err = e
+		return
+	}
+	var _p0 uint32
+	if createSuspended {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _ := bananaphone.Syscall(sysid, uintptr(unsafe.Pointer(threadHandle)), uintptr(desiredAccess), uintptr(unsafe.Pointer(objectAttributes)), uintptr(processHandle), uintptr(startAddress), uintptr(parameter), uintptr(_p0), uintptr(stackZeroBits), uintptr(sizeOfStackCommit), uintptr(sizeOfStackReserve), uintptr(lpbytesbuffer))
+	if r1 != 0 {
+		err = fmt.Errorf("error code: %x", r1)
+	}
+	return
+}
+
+func NtWriteVirtualMemory(processHandle windows.Handle, baseAddress uintptr, buffer *byte, numberOfBytesToWrite uintptr, numberOfBytesWritten *uint32) (err error) {
+	if bpGlobal == nil {
+		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
+		return
+	}
+
+	sysid, e := bpGlobal.GetSysID("NtWriteVirtualMemory")
+	if e != nil {
+		err = e
+		return
+	}
+	r1, _ := bananaphone.Syscall(sysid, uintptr(processHandle), uintptr(baseAddress), uintptr(unsafe.Pointer(buffer)), uintptr(numberOfBytesToWrite), uintptr(unsafe.Pointer(numberOfBytesWritten)))
+	if r1 != 0 {
+		err = fmt.Errorf("error code: %x", r1)
+	}
+	return
+}
+
+func NtReadVirtualMemory(hProcess windows.Handle, lpBaseAddress uintptr, lpBuffer *byte, nSize uintptr, lpNumberOfBytesWritten *uintptr) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
 		return
@@ -87,54 +131,18 @@ func NtReadVirtualMemory(hProcess syscall.Handle, lpBaseAddress uintptr, lpBuffe
 	return
 }
 
-func NtWriteVirtualMemory(hProcess syscall.Handle, lpBaseAddress uintptr, lpBuffer *byte, nSize uintptr, lpNumberOfBytesWritten *uintptr) (err error) {
+func NtResumeThread(threadHandle windows.Handle, previousSuspendCount *uint32) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
 		return
 	}
 
-	sysid, e := bpGlobal.GetSysID("NtWriteVirtualMemory")
+	sysid, e := bpGlobal.GetSysID("NtResumeThread")
 	if e != nil {
 		err = e
 		return
 	}
-	r1, _ := bananaphone.Syscall(sysid, uintptr(hProcess), uintptr(lpBaseAddress), uintptr(unsafe.Pointer(lpBuffer)), uintptr(nSize), uintptr(unsafe.Pointer(lpNumberOfBytesWritten)))
-	if r1 != 0 {
-		err = fmt.Errorf("error code: %x", r1)
-	}
-	return
-}
-
-func NtProtectVirtualemory(hProcess syscall.Handle, lpAddress *uintptr, dwSize *uintptr, flNewProtect uint32, lpflOldProtect *uint32) (err error) {
-	if bpGlobal == nil {
-		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
-		return
-	}
-
-	sysid, e := bpGlobal.GetSysID("NtProtectVirtualemory")
-	if e != nil {
-		err = e
-		return
-	}
-	r1, _ := bananaphone.Syscall(sysid, uintptr(hProcess), uintptr(unsafe.Pointer(lpAddress)), uintptr(unsafe.Pointer(dwSize)), uintptr(flNewProtect), uintptr(unsafe.Pointer(lpflOldProtect)))
-	if r1 != 0 {
-		err = fmt.Errorf("error code: %x", r1)
-	}
-	return
-}
-
-func NtCreateThreadEx(hThread *uintptr, desiredaccess uintptr, objattrib uintptr, processhandle uintptr, lpstartaddr uintptr, lpparam uintptr, createsuspended uintptr, zerobits uintptr, sizeofstack uintptr, sizeofstackreserve uintptr, lpbytesbuffer uintptr) (err error) {
-	if bpGlobal == nil {
-		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
-		return
-	}
-
-	sysid, e := bpGlobal.GetSysID("NtCreateThreadEx")
-	if e != nil {
-		err = e
-		return
-	}
-	r1, _ := bananaphone.Syscall(sysid, uintptr(unsafe.Pointer(hThread)), uintptr(desiredaccess), uintptr(objattrib), uintptr(processhandle), uintptr(lpstartaddr), uintptr(lpparam), uintptr(createsuspended), uintptr(zerobits), uintptr(sizeofstack), uintptr(sizeofstackreserve), uintptr(lpbytesbuffer))
+	r1, _ := bananaphone.Syscall(sysid, uintptr(threadHandle), uintptr(unsafe.Pointer(previousSuspendCount)))
 	if r1 != 0 {
 		err = fmt.Errorf("error code: %x", r1)
 	}

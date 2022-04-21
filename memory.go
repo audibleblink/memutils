@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/Binject/debug/pe"
+	"github.com/C-Sto/BananaPhone/pkg/BananaPhone"
 	"github.com/audibleblink/logerr"
 	"golang.org/x/sys/windows"
 )
@@ -13,23 +14,22 @@ import (
 func HandleForPid(pid int, privs int) (handle windows.Handle, err error) {
 	log := logerr.Add("HandleForPid")
 	if pid == 0 {
-		handle = windows.CurrentProcess()
+		handle = windows.CurrentProcess() //  non-api call
 		return
 	}
 
-	oa := unsafe.Pointer(&windows.OBJECT_ATTRIBUTES{})
-	err = NtOpenProcess(handle, uint64(privs), uintptr(oa), uintptr(pid))
-	// handle, err = windows.OpenProcess(uint32(attrs), true, uint32(pid))
+	err = NtOpenProcess(
+		&handle,                                       // OUT handle
+		windows.ACCESS_MASK(uint64(privs)),            // IN AccessMask
+		&windows.OBJECT_ATTRIBUTES{},                  // IN ObjectAttributes
+		&ClientID{UniqueProcess: windows.Handle(pid)}, // ClientID
+	)
 	if err != nil {
 		msg := fmt.Sprintf("OpenProcess[%d]", pid)
 		err = log.Add(msg).Wrap(err)
 	}
 	return
 }
-
-// func MyPEB() (peb windows.PEB, err error) {
-// 	pebStart := bananaphone.GetPEB()
-// }
 
 func GetPEB(handle windows.Handle) (peb windows.PEB, err error) {
 	pbi, err := ProcBasicInfo(handle)
@@ -142,17 +142,19 @@ func JuggleWrite(hProcess windows.Handle, baseAddr uintptr, data []byte) error {
 	var (
 		oldProtect uint32
 		old        uint32
-		written    uintptr
+
+		//size = uintptr(unsafe.Pointer(uintptr(len(data))))
 	)
 
+	// TODO bananify
 	err := windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, windows.PAGE_READWRITE, &oldProtect)
 	if err != nil {
 		return log.Add("VirtualProtectEx[rw]").Wrap(err)
 	}
-	err = windows.WriteProcessMemory(windows.Handle(hProcess), baseAddr, &data[0], uintptr(len(data)), &written)
-	if err != nil {
-		return log.Add("WriteProcessMemory").Wrap(err)
-	}
+
+	bananaphone.WriteMemory(data, baseAddr)
+
+	// TODO bananify
 	err = windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, oldProtect, &old)
 	if err != nil {
 		return log.Add("VirtualProtectEx[rx]").Wrap(err)
