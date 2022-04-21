@@ -17,14 +17,19 @@ func HandleForPid(pid int, privs int) (handle windows.Handle, err error) {
 		return
 	}
 
-	attrs := privs
-	handle, err = windows.OpenProcess(uint32(attrs), true, uint32(pid))
+	oa := unsafe.Pointer(&windows.OBJECT_ATTRIBUTES{})
+	err = NtOpenProcess(handle, uint64(privs), uintptr(oa), uintptr(pid))
+	// handle, err = windows.OpenProcess(uint32(attrs), true, uint32(pid))
 	if err != nil {
 		msg := fmt.Sprintf("OpenProcess[%d]", pid)
 		err = log.Add(msg).Wrap(err)
 	}
 	return
 }
+
+// func MyPEB() (peb windows.PEB, err error) {
+// 	pebStart := bananaphone.GetPEB()
+// }
 
 func GetPEB(handle windows.Handle) (peb windows.PEB, err error) {
 	pbi, err := ProcBasicInfo(handle)
@@ -58,7 +63,7 @@ func ProcBasicInfo(handle windows.Handle) (pbi windows.PROCESS_BASIC_INFORMATION
 }
 
 func ReadMemory(hProc windows.Handle, start unsafe.Pointer, dest unsafe.Pointer, readLen uint32) error {
-	return windows.ReadProcessMemory( hProc, uintptr(start), (*byte)(dest), uintptr(readLen), nil, )
+	return NtReadVirtualMemory(hProc, uintptr(start), (*byte)(dest), uintptr(readLen), nil)
 }
 
 func fillPEB(handle windows.Handle, pbi *windows.PROCESS_BASIC_INFORMATION) error {

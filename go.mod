@@ -9,6 +9,8 @@ require (
 )
 
 require (
+	github.com/C-Sto/BananaPhone v0.0.0-20220220002628-6585e5913761 // indirect
+	github.com/awgh/rawreader v0.0.0-20200626064944-56820a9c6da4 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/mattn/go-colorable v0.1.9 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
