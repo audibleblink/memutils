@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/Binject/debug/pe"
+	"github.com/C-Sto/BananaPhone/pkg/BananaPhone"
 	"github.com/audibleblink/logerr"
 	"golang.org/x/sys/windows"
 )
@@ -13,12 +14,16 @@ import (
 func HandleForPid(pid int, privs int) (handle windows.Handle, err error) {
 	log := logerr.Add("HandleForPid")
 	if pid == 0 {
-		handle = windows.CurrentProcess()
+		handle = windows.CurrentProcess() //  non-api call
 		return
 	}
 
-	attrs := privs
-	handle, err = windows.OpenProcess(uint32(attrs), true, uint32(pid))
+	err = NtOpenProcess(
+		&handle,                                       // OUT handle
+		windows.ACCESS_MASK(uint64(privs)),            // IN AccessMask
+		&windows.OBJECT_ATTRIBUTES{},                  // IN ObjectAttributes
+		&ClientID{UniqueProcess: windows.Handle(pid)}, // ClientID
+	)
 	if err != nil {
 		msg := fmt.Sprintf("OpenProcess[%d]", pid)
 		err = log.Add(msg).Wrap(err)
@@ -58,7 +63,7 @@ func ProcBasicInfo(handle windows.Handle) (pbi windows.PROCESS_BASIC_INFORMATION
 }
 
 func ReadMemory(hProc windows.Handle, start unsafe.Pointer, dest unsafe.Pointer, readLen uint32) error {
-	return windows.ReadProcessMemory( hProc, uintptr(start), (*byte)(dest), uintptr(readLen), nil, )
+	return NtReadVirtualMemory(hProc, uintptr(start), (*byte)(dest), uintptr(readLen), nil)
 }
 
 func fillPEB(handle windows.Handle, pbi *windows.PROCESS_BASIC_INFORMATION) error {
@@ -137,17 +142,19 @@ func JuggleWrite(hProcess windows.Handle, baseAddr uintptr, data []byte) error {
 	var (
 		oldProtect uint32
 		old        uint32
-		written    uintptr
+
+		//size = uintptr(unsafe.Pointer(uintptr(len(data))))
 	)
 
+	// TODO bananify
 	err := windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, windows.PAGE_READWRITE, &oldProtect)
 	if err != nil {
 		return log.Add("VirtualProtectEx[rw]").Wrap(err)
 	}
-	err = windows.WriteProcessMemory(windows.Handle(hProcess), baseAddr, &data[0], uintptr(len(data)), &written)
-	if err != nil {
-		return log.Add("WriteProcessMemory").Wrap(err)
-	}
+
+	bananaphone.WriteMemory(data, baseAddr)
+
+	// TODO bananify
 	err = windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, oldProtect, &old)
 	if err != nil {
 		return log.Add("VirtualProtectEx[rx]").Wrap(err)
