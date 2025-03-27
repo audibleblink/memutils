@@ -16,4 +16,5 @@ require (
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/nodauf/bananaWinSyscall v0.0.0-20220719142629-6af8394fa8b6 // indirect
 )

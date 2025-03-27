@@ -1,3 +1,5 @@
+//go:build windows
+
 package memutils
 
 import (
@@ -161,18 +163,21 @@ func JuggleWrite(hProcess windows.Handle, baseAddr uintptr, data []byte) error {
 		//size = uintptr(unsafe.Pointer(uintptr(len(data))))
 	)
 
-	// TODO bananify
-	err := windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, windows.PAGE_READWRITE, &oldProtect)
+	// Change memory protection to allow writing
+	var regionSize uintptr = 1
+	err := NtProtectVirtualMemory(hProcess, &baseAddr, &regionSize, int64(windows.PAGE_READWRITE), (*int64)(unsafe.Pointer(&oldProtect)))
 	if err != nil {
-		return log.Add("VirtualProtectEx[rw]").Wrap(err)
+		return log.Add("NtProtectVirtualMemory[rw]").Wrap(err)
 	}
 
+	// Write memory using BananaPhone
 	bananaphone.WriteMemory(data, baseAddr)
 
-	// TODO bananify
-	err = windows.VirtualProtectEx(windows.Handle(hProcess), baseAddr, 1, oldProtect, &old)
+	// Restore original memory protection
+	regionSize = 1
+	err = NtProtectVirtualMemory(hProcess, &baseAddr, &regionSize, int64(oldProtect), (*int64)(unsafe.Pointer(&old)))
 	if err != nil {
-		return log.Add("VirtualProtectEx[rx]").Wrap(err)
+		return log.Add("NtProtectVirtualMemory[restore]").Wrap(err)
 	}
 	return err
 }

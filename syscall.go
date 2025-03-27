@@ -1,3 +1,5 @@
+//go:build windows
+
 package memutils
 
 import "golang.org/x/sys/windows"
