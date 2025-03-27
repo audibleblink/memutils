@@ -11,6 +11,9 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// HandleForPid obtains a handle to a process with the specified process ID (PID)
+// The privs parameter determines the access rights requested for the handle
+// If pid is 0, returns a handle to the current process
 func HandleForPid(pid int, privs int) (handle windows.Handle, err error) {
 	log := logerr.Add("HandleForPid")
 	if pid == 0 {
@@ -31,6 +34,8 @@ func HandleForPid(pid int, privs int) (handle windows.Handle, err error) {
 	return
 }
 
+// GetPEB retrieves the Process Environment Block (PEB) for a process
+// The PEB contains information about the process's memory layout and environment
 func GetPEB(handle windows.Handle) (peb windows.PEB, err error) {
 	pbi, err := ProcBasicInfo(handle)
 	if err != nil {
@@ -46,6 +51,8 @@ func GetPEB(handle windows.Handle) (peb windows.PEB, err error) {
 	return
 }
 
+// ProcBasicInfo retrieves basic information about a process
+// Returns a PROCESS_BASIC_INFORMATION structure containing process details
 func ProcBasicInfo(handle windows.Handle) (pbi windows.PROCESS_BASIC_INFORMATION, err error) {
 	pbiSize := unsafe.Sizeof(windows.PROCESS_BASIC_INFORMATION{})
 	var returnedLen uint32
@@ -62,6 +69,8 @@ func ProcBasicInfo(handle windows.Handle) (pbi windows.PROCESS_BASIC_INFORMATION
 	return
 }
 
+// ReadMemory reads data from the memory of a process
+// Copies readLen bytes from start address in the target process to dest address in the current process
 func ReadMemory(hProc windows.Handle, start unsafe.Pointer, dest unsafe.Pointer, readLen uint32) error {
 	return NtReadVirtualMemory(hProc, uintptr(start), (*byte)(dest), uintptr(readLen), nil)
 }
@@ -101,6 +110,8 @@ func fillPEB(handle windows.Handle, pbi *windows.PROCESS_BASIC_INFORMATION) erro
 	return err
 }
 
+// PopulateStrings reads and converts an NTUnicodeString from a process's memory into a Go string
+// Useful for reading string data like module names from Windows processes
 func PopulateStrings(pidHandle windows.Handle, ntString *windows.NTUnicodeString) (string, error) {
 	dllNameUTF16 := make([]uint16, ntString.Length)
 	base := unsafe.Pointer(ntString.Buffer)
@@ -113,6 +124,8 @@ func PopulateStrings(pidHandle windows.Handle, ntString *windows.NTUnicodeString
 	return windows.UTF16ToString(dllNameUTF16), err
 }
 
+// CarveOutPE extracts a PE (Portable Executable) file from a process's memory
+// Reads the PE file at the image base address specified in the PEB
 func CarveOutPE(hProc windows.Handle, peb windows.PEB, peSize uint64) (pe.File, error) {
 	// read in the PE from process memory
 	peData := make([]byte, peSize)
@@ -136,6 +149,8 @@ func CarveOutPE(hProc windows.Handle, peb windows.PEB, peSize uint64) (pe.File, 
 	return *peFile, err
 }
 
+// JuggleWrite writes data to a process's memory by temporarily changing memory protection
+// Handles the protection changes before and after writing to ensure successful writes
 func JuggleWrite(hProcess windows.Handle, baseAddr uintptr, data []byte) error {
 	log := logerr.Add("JuggleWrite")
 

@@ -17,6 +17,8 @@ var (
 	bpGlobal, bperr = bananaphone.NewBananaPhone(bananaphone.AutoBananaPhoneMode)
 )
 
+// NtAllocateVirtualMemory allocates or reserves memory in the virtual address space of the specified process
+// Wraps the native Windows syscall with BananaPhone to bypass API monitoring
 func NtAllocateVirtualMemory(processHandle windows.Handle, baseAddress *uintptr, zeroBits uintptr, regionSize *uintptr, allocationType uint64, protect uint64) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
@@ -35,6 +37,8 @@ func NtAllocateVirtualMemory(processHandle windows.Handle, baseAddress *uintptr,
 	return
 }
 
+// NtOpenProcess opens a handle to a process with the specified access rights
+// Wraps the native Windows syscall with BananaPhone to bypass API monitoring
 func NtOpenProcess(processHandle *windows.Handle, desiredAccess windows.ACCESS_MASK, objectAttributes *windows.OBJECT_ATTRIBUTES, clientID *ClientID) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
@@ -53,6 +57,8 @@ func NtOpenProcess(processHandle *windows.Handle, desiredAccess windows.ACCESS_M
 	return
 }
 
+// NtProtectVirtualMemory changes the protection on a region of committed pages in virtual memory
+// Wraps the native Windows syscall with BananaPhone to bypass API monitoring
 func NtProtectVirtualMemory(processHandle windows.Handle, baseAddress *uintptr, numberOfBytesToProtect *uintptr, newAccessProtection int64, OldAccessProtection *int64) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
@@ -71,6 +77,8 @@ func NtProtectVirtualMemory(processHandle windows.Handle, baseAddress *uintptr, 
 	return
 }
 
+// NtCreateThreadEx creates a thread in the context of the specified process
+// Wraps the native Windows syscall with BananaPhone to bypass API monitoring
 func NtCreateThreadEx(threadHandle *windows.Handle, desiredAccess windows.ACCESS_MASK, objectAttributes *windows.OBJECT_ATTRIBUTES, processHandle windows.Handle, startAddress uintptr, parameter uintptr, createSuspended bool, stackZeroBits uint32, sizeOfStackCommit uint32, sizeOfStackReserve uint32, lpbytesbuffer uint32) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
@@ -95,6 +103,8 @@ func NtCreateThreadEx(threadHandle *windows.Handle, desiredAccess windows.ACCESS
 	return
 }
 
+// NtWriteVirtualMemory writes data to an area of memory in a specified process
+// Wraps the native Windows syscall with BananaPhone to bypass API monitoring
 func NtWriteVirtualMemory(processHandle windows.Handle, baseAddress uintptr, buffer *byte, numberOfBytesToWrite uintptr, numberOfBytesWritten *uint32) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
@@ -113,6 +123,8 @@ func NtWriteVirtualMemory(processHandle windows.Handle, baseAddress uintptr, buf
 	return
 }
 
+// NtReadVirtualMemory reads data from an area of memory in a specified process
+// Wraps the native Windows syscall with BananaPhone to bypass API monitoring
 func NtReadVirtualMemory(hProcess windows.Handle, lpBaseAddress uintptr, lpBuffer *byte, nSize uintptr, lpNumberOfBytesWritten *uintptr) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())
@@ -131,6 +143,8 @@ func NtReadVirtualMemory(hProcess windows.Handle, lpBaseAddress uintptr, lpBuffe
 	return
 }
 
+// NtResumeThread resumes execution of a suspended thread
+// Wraps the native Windows syscall with BananaPhone to bypass API monitoring
 func NtResumeThread(threadHandle windows.Handle, previousSuspendCount *uint32) (err error) {
 	if bpGlobal == nil {
 		err = fmt.Errorf("BananaPhone uninitialised: %s", bperr.Error())

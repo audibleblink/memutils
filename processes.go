@@ -17,6 +17,8 @@ type WindowsProcess struct {
 	Exe  string
 }
 
+// Processes retrieves a list of all running processes in the system
+// Returns a slice of WindowsProcess structures and an error if the operation fails
 func Processes() ([]WindowsProcess, error) {
 	log := logerr.Add("Processes")
 	handle, err := windows.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
@@ -49,6 +51,8 @@ func Processes() ([]WindowsProcess, error) {
 	}
 }
 
+// NewWindowsProcess creates a WindowsProcess struct from a windows.ProcessEntry32
+// Converts the process information into a more usable structure
 func NewWindowsProcess(e *windows.ProcessEntry32) WindowsProcess {
 	// Find when the string ends for decoding
 	end := 0
@@ -66,6 +70,8 @@ func NewWindowsProcess(e *windows.ProcessEntry32) WindowsProcess {
 	}
 }
 
+// PidForName finds the process ID (PID) for a process with the given name
+// Returns 0 if no process with the specified name is found
 func PidForName(processName string) int {
 	processes, _ := Processes()
 	for _, process := range processes {
